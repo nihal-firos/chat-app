@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{room}} - Django Chat</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    :root {
+      --primary-color: #4361ee;
+      --primary-hover: #3a56d4;
+      --bg-color: #f9fafb;
+      --text-color: #333;
+      --card-bg: #fff;
+      --border-color: #e5e7eb;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --input-bg: #fff;
+      --message-bg: #f3f4f6;
+      --message-user-bg: #dbeafe;
+      --time-color: #6b7280;
+    }
+
+    .dark-mode {
+      --primary-color: #4d7cfe;
+      --primary-hover: #3d6df0;
+      --bg-color: #111827;
+      --text-color: #f3f4f6;
+      --card-bg: #1f2937;
+      --border-color: #374151;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+      --input-bg: #374151;
+      --message-bg: #374151;
+      --message-user-bg: #2563eb;
+      --time-color: #9ca3af;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .room-title {
+      font-size: 1.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toggle-dark-mode {
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding: 10px;
+      border-radius: 12px;
+      background-color: var(--card-bg);
+      box-shadow: var(--shadow);
+    }
+
+    .message {
+      padding: 12px 15px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      max-width: 80%;
+      position: relative;
+      background-color: var(--message-bg);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .message-user {
+      background-color: var(--message-user-bg);
+      color: rgb(0, 0, 0);
+      align-self: flex-end;
+      margin-left: auto;
+    }
+
+    .message-content {
+      margin-top: 4px;
+      word-wrap: break-word;
+    }
+
+    .message-username {
+      font-weight: 600;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+    }
+
+    .message-time {
+      font-size: 0.75rem;
+      color: var(--time-color);
+      margin-top: 5px;
+      text-align: right;
+    }
+
+    .input-container {
+      position: relative;
+      margin-top: auto;
+      padding: 15px;
+      border-radius: 12px;
+      background-color: var(--card-bg);
+      box-shadow: var(--shadow);
+    }
+
+    .message-form {
+      display: flex;
+      gap: 10px;
+    }
+
+    .message-input {
+      flex: 1;
+      padding: 12px 15px;
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      font-size: 1rem;
+      background-color: var(--input-bg);
+      color: var(--text-color);
+      outline: none;
+    }
+
+    .message-input:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+    }
+
+    .send-btn {
+      width: 50px;
+      height: 50px;
+      background-color: var(--primary-color);
+      border: none;
+      color: white;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s;
+    }
+
+    .send-btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px;
+      color: var(--time-color);
+    }
+
+    /* Animation for new messages */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .new-message {
+      animation: fadeIn 0.3s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 class="room-title">
+      <i class="fas fa-comments"></i>
+      {{room}}
+    </h1>
+    <button class="toggle-dark-mode" onclick="toggleDarkMode()">
+      <i class="fas fa-moon" id="dark-mode-icon"></i>
+    </button>
+  </div>
+
+  <div class="messages-container" id="display">
+    <!-- Messages will be loaded here -->
+    <div class="empty-state">
+      <i class="fas fa-comment-dots" style="font-size: 3rem; margin-bottom: 15px;"></i>
+      <p>No messages yet. Start the conversation!</p>
+    </div>
+  </div>
+
+  <div class="input-container">
+    <form id="post-form" class="message-form">
+      {% csrf_token %}
+      <input type="hidden" name="username" id="username" value="{{username}}"/>
+      <input type="hidden" name="room_id" id="room_id" value="{{room_details.id}}"/>
+      <input type="text" name="message" id="message" class="message-input" placeholder="Type a message..." autocomplete="off"/>
+      <button type="submit" class="send-btn">
+        <i class="fas fa-paper-plane"></i>
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // Check for saved dark mode preference
+    if (localStorage.getItem('darkMode') === 'true') {
+      document.body.classList.add('dark-mode');
+      document.getElementById('dark-mode-icon').classList.replace('fa-moon', 'fa-sun');
+    }
+
+    function toggleDarkMode() {
+      const body = document.body;
+      const icon = document.getElementById('dark-mode-icon');
+      
+      body.classList.toggle('dark-mode');
+      
+      if (body.classList.contains('dark-mode')) {
+        icon.classList.replace('fa-moon', 'fa-sun');
+        localStorage.setItem('darkMode', 'true');
+      } else {
+        icon.classList.replace('fa-sun', 'fa-moon');
+        localStorage.setItem('darkMode', 'false');
+      }
+    }
+
+    // Format date string to a more readable format
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Get messages
+    let lastMessageCount = 0;
+    $(document).ready(function(){
+      setInterval(function(){
+        $.ajax({
+          type: 'GET',
+          url: '/getMessages/{{ room }}',
+          success: function(response){
+            if (response.messages.length > 0) {
+              $('.empty-state').hide();
+            }
+            
+            // Only rebuild messages if we have new ones
+            if (response.messages.length !== lastMessageCount) {
+              $('#display').empty();
+              const currentUsername = $('#username').val();
+              
+              for(var key in response.messages) {
+                const message = response.messages[key];
+                const isCurrentUser = message.user === currentUsername;
+                
+                const messageClass = isCurrentUser ? 'message message-user new-message' : 'message new-message';
+                const formattedDate = formatDate(message.date);
+                
+                var temp = `
+                  <div class="${messageClass}">
+                    <div class="message-username">${message.user}</div>
+                    <div class="message-content">${message.value}</div>
+                    <div class="message-time">${formattedDate}</div>
+                  </div>
+                `;
+                $('#display').append(temp);
+              }
+              
+              lastMessageCount = response.messages.length;
+              
+              // Scroll to bottom of messages
+              const messagesContainer = document.querySelector('.messages-container');
+              messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+          },
+          error: function(response){
+            console.error("Error fetching messages");
+          }
+        });
+      }, 1000);
+    });
+
+    // Send message 
+    $(document).on('submit', '#post-form', function(e){
+    e.preventDefault();
+    const messageInput = $('#message');
+    const messageText = messageInput.val().trim();
+  
+    if (messageText !== '') {
+      // Clear input immediately (don't wait for server response)
+      messageInput.val('').focus();
+    
+      $.ajax({
+        type: 'POST',
+        url: '/send',
+        data: {
+          'username': $('#username').val(),
+          'room_id': $('#room_id').val(),
+          'message': messageText, // Use the trimmed version
+          'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val(),
+        },
+        success: function(data){
+          // Success handling (if needed)
+        },
+        error: function(data){
+          console.error("Error sending message");
+          // Optional: Put the message back if sending failed
+          // messageInput.val(messageText);
+        }  
+      });
+    }
+  });
+  </script>
+</body>
+</html>
